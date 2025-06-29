@@ -1,0 +1,52 @@
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  airflow-webserver:
+    image: apache/airflow:2.7.0
+    depends_on:
+      - postgres
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__WEBSERVER__RBAC: "True"
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__WEBSERVER__SECRET_KEY: "ma_super_cle_secrete_123"
+      AIRFLOW__CORE__REMOTE_LOGGING: "False"
+      AIRFLOW__CORE__HOSTNAME_CALLABLE: "socket.gethostname"
+    user: airflow
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./ETL_Flightradar24:/opt/airflow/ETL_Flightradar24
+      - ./requirements.txt:/requirements.txt
+    ports:
+      - "8080:8080"
+    entrypoint: |
+      bash -c 'pip install --user --no-cache-dir -r /requirements.txt && airflow db upgrade && exec airflow webserver'
+
+  airflow-scheduler:
+    image: apache/airflow:2.7.0
+    depends_on:
+      - airflow-webserver
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres/airflow
+      AIRFLOW__WEBSERVER__SECRET_KEY: "ma_super_cle_secrete_123"
+      AIRFLOW__CORE__REMOTE_LOGGING: "False"
+      AIRFLOW__CORE__HOSTNAME_CALLABLE: "socket.gethostname"
+    user: airflow
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./ETL_Flightradar24:/opt/airflow/ETL_Flightradar24
+      - ./requirements.txt:/requirements.txt
+    entrypoint: |
+      bash -c 'pip install --user --no-cache-dir -r /requirements.txt && exec airflow scheduler'
+
+volumes:
+  postgres_data:
